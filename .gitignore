@@ -1,0 +1,6 @@
+/backups/
+__pycache__/
+*.py[cod]
+*.sav
+*.SAV
+*.torunit.json

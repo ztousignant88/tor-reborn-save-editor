@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TO:R Save Editor</title>
+<link rel="stylesheet" href="/app/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><h1>TO:R Save Editor</h1><span class="muted">companion to the TO:R Editor</span></div>
+  <label class="savepick">Save
+    <select id="save-select" disabled><option>Loading…</option></select>
+  </label>
+  <button id="reload" title="Read the save list and the open save from disk again">Reload</button>
+  <div class="spacer"></div>
+  <span id="dirty" class="dirty" hidden>Unsaved changes</span>
+  <button id="revert" disabled>Undo all changes</button>
+  <button id="save-copy" disabled title="Write the edited save to another slot number">Save to slot…</button>
+  <button id="save" class="primary" disabled>Save</button>
+</header>
+
+<main>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="units" aria-selected="true">Units</button>
+    <button role="tab" data-tab="inventory" aria-selected="false">Inventory &amp; Goth</button>
+    <button role="tab" data-tab="backups" aria-selected="false">Backups</button>
+  </nav>
+  <section id="tab-units" class="tab units-tab">
+    <aside class="roster">
+      <div class="roster-head"><span id="roster-count" class="muted"></span>
+        <button id="import-unit" disabled title="Add a character exported from any save">Import unit…</button>
+        <input id="import-file" type="file" accept=".json,.torunit,application/json" hidden></div>
+      <ol id="roster"></ol>
+    </aside>
+    <div id="unit" class="unit-panel"><p class="muted pad">Open a save to see its units.</p></div>
+  </section>
+  <section id="tab-inventory" class="tab" hidden></section>
+  <section id="tab-backups" class="tab" hidden></section>
+</main>
+
+<footer class="statusbar"><span id="status">Starting…</span><span id="folder" class="muted"></span></footer>
+
+<dialog id="copy-dialog">
+  <form method="dialog">
+    <h2>Save to another slot</h2>
+    <p class="muted">The edited save is written to the slot you choose. The file you opened is left as it is.
+      If the slot already has a save, it is backed up first.</p>
+    <label>Slot number <input id="copy-slot" type="number" min="0" max="99999999" required></label>
+    <p id="copy-note" class="muted small"></p>
+    <menu><button value="cancel">Cancel</button><button value="ok" class="primary">Save</button></menu>
+  </form>
+</dialog>
+
+<script type="module" src="/app/main.js"></script>
+</body>
+</html>
