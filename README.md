@@ -23,6 +23,7 @@ The editor looks for saves under `Documents\My Games\Tactics Ogre Reborn` and op
 | Units | name, class, level, loyalty, luck, element, 7 equipment slots, 4 spells, 4 carried items, 4 equipped skills with rank, the four stored parts of every stat |
 | Roster | duplicate a unit into the next free slot; remove a unit (later units move up) |
 | Inventory | Goth, army name, stock of every equipment piece and item (0–999) |
+| Campaign records | Warren Report statistics and Chaos Frame faction reputation |
 
 Pictures: unit sprites (roster and unit header), and icons for equipment,
 spells, items, skills and the inventory lists. They come from the game's own
@@ -137,3 +138,9 @@ Consumables are keyed by their own index. Every named row of each table was chec
 Equipment also lists its type, ATK/DEF/RT, stat bonuses and affinities (armament schema offsets).
 Snapshot weapons and relic copies add their own stats and who wears them.
 Field and heading descriptions are written in `main.js` (FIELD_HELP, SNAP_HELP, HEADING_HELP, STAT_HELP).
+
+## Warren Report and Chaos Frame
+
+Open **Inventory & Goth** and scroll below the stock lists. In **Warren Report**, you can edit battles, victories, allied casualties, enemies slain by faction, campaign days, Chariot Tarot uses, war funds, and play time. Changing enemies slain for a faction also updates the total. The game displays up to 9,999 per count.
+
+In **Chaos Frame**, use the slider or number field to set each faction’s reputation from 0 to 100. A value of 50 is neutral. These controls are available in saves with the mapped inventory layout.

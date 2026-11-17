@@ -11,7 +11,7 @@ import { rgbaCanvas, textureCanvas } from '/js/ui/texcanvas.js';
 import { loadIconArchive } from '/js/game/icons.js';
 import {
   SaveData, UNIT, STATS, EDITABLE_PARTS, SLOT_NAMES, SLOT_TYPES, INVENTORY,
-  NAMED_BASE, CUSTOM_BASE, MAX_STOCK, SNAPSHOT,
+  NAMED_BASE, CUSTOM_BASE, MAX_STOCK, SNAPSHOT, WARREN, CHAOS_FRAME,
 } from './saveformat.js';
 
 const API = { 'X-TOR-Editor': '1' };
@@ -136,6 +136,16 @@ const FIELD_HELP = {
   'Army name': 'The army’s name.',
   'Union Level': 'Units can’t level past this. The story raises it; the game maximum is 50.',
   'Chariot rewind turns': 'How many turns the Chariot Tarot can rewind (10 early in the game, 50 late).',
+  // Warren Report
+  Battles: 'Battles fought, shown on the Warren Report.',
+  Victories: 'Battles won.',
+  'Allies Incapacitated': 'How many times your units were knocked out.',
+  'Allies Slain': 'How many of your units died for good.',
+  'Campaign days': 'In-game days that have passed in the campaign.',
+  'Chariot Tarot uses': 'How many times the Chariot Tarot has been used to rewind.',
+  'War Funds Collected': 'All Goth ever earned. Separate from the Goth you have now.',
+  'War Funds Spent': 'All Goth ever spent.',
+  'Play time': 'Total play time. Seconds are left as they are.',
 };
 const SNAP_HELP = {
   Name: 'Shown as the weapon’s name, up to 16 characters.',
@@ -159,6 +169,9 @@ const HEADING_HELP = [
   [/^Unlocked by level/, 'Every skill this unit has unlocked by level, in any class. View only.'],
   [/^Snapshot weapons/, 'Cursed weapons made by sacrificing a unit; each keeps a snapshot of that unit’s stats. Click one to edit it.'],
   [/^Relics/, 'Rare equipment kept as single copies with their own bonuses. Two copies of a relic combine into a stronger one in game.'],
+  [/^Warren Report/, 'The army’s statistics from the Warren Report screen.'],
+  [/^Enemies slain/, 'Enemies slain by faction. Unknown is enemies with no listed faction. The game caps each shown number at 9,999.'],
+  [/^Chaos Frame/, 'Your reputation with each faction (0–100, 50 neutral). Killing a faction’s units lowers it; it affects how loyal that faction’s recruits are.'],
   [/^Equipment stock/, 'How many of each piece the army owns, worn pieces included.'],
   [/^Item stock/, 'How many of each consumable and spellbook the army owns.'],
 ];
@@ -1127,15 +1140,17 @@ function renderInventory() {
   const pane = $('tab-inventory');
   const d = state.data;
   if (!d) { pane.replaceChildren(h('p', { class: 'muted pad' }, 'Open a save first.')); return; }
-  const general = h('div', { class: 'card' }, h('h3', {}, 'Army'),
-    h('div', { class: 'grid2' },
-      h('label', {}, 'Goth'), numberInput(d.goth, (v) => { d.goth = v; markDirty(); }, { min: 0, max: 99999999, style: 'width:120px' }),
-      h('label', {}, 'Army name'), h('input', { type: 'text', value: d.armyName, maxLength: 32, onchange: (e) => { d.armyName = e.target.value; markDirty(); } }),
+  // Army: one row of fields across the top of the page
+  const field = (label, input, tip) => h('span', { class: 'field' }, h('label', tip ? { title: tip } : {}, label), input);
+  const general = h('div', { class: 'card army' }, h('h3', {}, 'Army'),
+    h('div', { class: 'fields-row' },
+      field('Goth', numberInput(d.goth, (v) => { d.goth = v; markDirty(); }, { min: 0, max: 99999999, style: 'width:120px' })),
+      field('Army name', h('input', { type: 'text', value: d.armyName, maxLength: 32, style: 'width:220px', onchange: (e) => { d.armyName = e.target.value; markDirty(); } })),
       ...(d.knownLayout ? [
-        h('label', { title: 'Units cannot level past this. The story raises it; the game maximum is 50.' }, 'Union Level'),
-        numberInput(d.unionLevel, (v) => { d.unionLevel = v; markDirty(); renderInventory(); }, { min: 1, max: 50 }),
-        h('label', { title: 'How many turns the Chariot Tarot can rewind (10 early in the game, 50 late).' }, 'Chariot rewind turns'),
-        numberInput(d.chariotTurns, (v) => { d.chariotTurns = v; markDirty(); renderInventory(); }, { min: 1, max: 50 }),
+        field('Union Level', numberInput(d.unionLevel, (v) => { d.unionLevel = v; markDirty(); renderInventory(); }, { min: 1, max: 50 }),
+          'Units cannot level past this. The story raises it; the game maximum is 50.'),
+        field('Chariot rewind turns', numberInput(d.chariotTurns, (v) => { d.chariotTurns = v; markDirty(); renderInventory(); }, { min: 1, max: 50 }),
+          'How many turns the Chariot Tarot can rewind (10 early in the game, 50 late).'),
       ] : [])),
     d.knownLayout ? h('p', { class: 'note' }, 'Union Level caps unit levels (max 50). Found from save comparisons; check in game after changing.') : null);
   if (!d.knownLayout) {
@@ -1219,18 +1234,61 @@ function renderInventory() {
         h('td', { class: 'icon' }, art(() => itemIconFor(SNAPSHOT.baseItem + s.type))),
         h('td', {}, `Cursed Weapon (${weaponTypeName(s.type)})`, h('div', { class: 'muted small' }, 'not made yet')), h('td', { class: 'muted' }, '')));
   }
-  pane.replaceChildren(h('div', { class: 'inv' },
-    h('div', { class: 'inv-col' }, general,
+  // Army strip on top, then the stock lists; the campaign records (less used) go last
+  pane.replaceChildren(h('div', { class: 'inv-page' },
+    general,
+    h('div', { class: 'inv' },
       h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h3', {}, 'Snapshot weapons'),
         h('button', { onclick: () => openSnapshotBuilder(null) }, '+ New snapshot weapon')),
         h('div', { class: 'list snapshots' }, h('table', {}, h('tbody', {}, special.length ? special : h('tr', {}, h('td', { class: 'muted' }, 'None owned.'))))),
         h('p', { class: 'note' }, 'Click a weapon to edit it.')),
-    ),
-    h('div', { class: 'card' }, h('h3', {}, 'Equipment stock'), tools, stockTable(arms, (id) => d.armsStock(id), (id, n) => d.setArmsStock(id, n), true)),
-    h('div', { class: 'card' }, h('h3', {}, 'Item stock'), tools.cloneNode(false), stockTable(items, (id) => d.itemStock(id), (id, n) => d.setItemStock(id, n))),
-    relicCard));
+      h('div', { class: 'card' }, h('h3', {}, 'Equipment stock'), tools, stockTable(arms, (id) => d.armsStock(id), (id, n) => d.setArmsStock(id, n), true)),
+      h('div', { class: 'card' }, h('h3', {}, 'Item stock'), tools.cloneNode(false), stockTable(items, (id) => d.itemStock(id), (id, n) => d.setItemStock(id, n))),
+      relicCard),
+    h('div', { class: 'inv-top' }, chaosCard(d), warrenCard(d))));
   // the second card shares the first card's filter; give it a short note instead of a second filter box
   pane.querySelectorAll('.inv .card .tools')[1]?.append(h('span', { class: 'muted small' }, 'Uses the filter above.'));
+}
+
+// ---------------------------------------------------------------- Warren Report / Chaos Frame
+function warrenCard(d) {
+  const big = { min: 0, style: 'width:120px' };
+  const fields = WARREN.fields.map(([key, , label]) => [h('label', {}, label),
+    numberInput(d.warren(key), (v) => { d.setWarren(key, v); markDirty(); renderInventory(); }, big)]);
+  // play time: days / hours / minutes, seconds kept as they are
+  const f = d.playFrames, secs = Math.floor(f / 60);
+  const part = { d: Math.floor(secs / 86400), h: Math.floor(secs % 86400 / 3600), m: Math.floor(secs % 3600 / 60) };
+  const setPlay = (k) => (v) => {
+    const p = { ...part, [k]: Math.max(0, Math.floor(v) || 0) };
+    d.playFrames = ((p.d * 86400 + p.h * 3600 + p.m * 60) + secs % 60) * 60 + f % 60;
+    markDirty(); renderInventory();
+  };
+  const play = h('span', { class: 'playtime' },
+    numberInput(part.d, setPlay('d'), { min: 0, style: 'width:64px' }), 'd ',
+    numberInput(part.h, setPlay('h'), { min: 0, max: 23, style: 'width:52px' }), 'h ',
+    numberInput(part.m, setPlay('m'), { min: 0, max: 59, style: 'width:52px' }), 'm');
+  const kills = WARREN.enemies.map(([name, off]) => h('tr', {}, h('td', {}, name),
+    h('td', { class: 'num' }, numberInput(d.enemiesSlain(off), (v) => { d.setEnemiesSlain(off, v); markDirty(); renderInventory(); }, { min: 0, style: 'width:100px' }))));
+  return h('div', { class: 'card warren' }, h('h3', {}, 'Warren Report'),
+    h('div', { class: 'warren-body' },
+      h('div', { class: 'grid2' }, ...fields.flat(), h('label', {}, 'Play time'), play),
+      h('div', {},
+        h('div', { class: 'sub-head' }, 'Enemies slain', h('span', { class: 'muted' }, ` · total ${fmt(d.enemiesTotal)}`)),
+        h('table', { class: 'kills' }, h('tbody', {}, kills)))),
+    h('p', { class: 'note' }, 'The game shows each count capped at 9,999. The total is kept equal to the sum of the factions, as in your saves.'));
+}
+function chaosCard(d) {
+  const rows = CHAOS_FRAME.map(([name, off]) => {
+    const v = d.chaos(off);
+    const num = numberInput(v, (x) => { d.setChaos(off, x); markDirty(); renderInventory(); }, { min: 0, max: 100, style: 'width:60px' });
+    const slider = h('input', { type: 'range', min: 0, max: 100, value: v, class: 'chaos-slider',
+      oninput: (e) => { num.value = e.target.value; },
+      onchange: (e) => { d.setChaos(off, Number(e.target.value)); markDirty(); renderInventory(); } });
+    return h('tr', {}, h('td', {}, name), h('td', { class: 'chaos-cell' }, slider), h('td', { class: 'num' }, num));
+  });
+  return h('div', { class: 'card chaos' }, h('h3', {}, 'Chaos Frame'),
+    h('table', { class: 'chaos-table' }, h('tbody', {}, rows)),
+    h('p', { class: 'note' }, '0–100 for each faction; 50 is neutral. Matched to the game’s Chaos Frame screen.'));
 }
 
 // ---------------------------------------------------------------- snapshot builder

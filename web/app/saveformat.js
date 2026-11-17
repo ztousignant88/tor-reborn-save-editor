@@ -102,6 +102,24 @@ export const SNAPSHOT = {
   ],
   perType: 5, types: 17, baseItem: 0x262,
 };
+/** Warren Report army statistics, stored as u32 values in the mapped save layout. */
+export const WARREN = {
+  fields: [ // [key, offset, label]
+    ['battles', 0x5AE9A, 'Battles'], ['victories', 0x5AE9E, 'Victories'],
+    ['alliesDown', 0x5AEA6, 'Allies Incapacitated'], ['alliesSlain', 0x5AEAA, 'Allies Slain'],
+    ['campaignDays', 0x5AED2, 'Campaign days'], ['chariotUses', 0x5AFFA, 'Chariot Tarot uses'],
+    ['fundsIn', 0x5AED6, 'War Funds Collected'], ['fundsOut', 0x5AEDA, 'War Funds Spent'],
+  ],
+  enemiesTotal: 0x5AEAE,
+  // enemies slain by faction; the save keeps Unknown first
+  enemies: [['Walister', 0x5AEB6], ['Galgastan', 0x5AEBA], ['Bakram', 0x5AEBE], ['Xenobia', 0x5AEC2],
+    ['Lodis', 0x5AEC6], ['Bolmocca', 0x5AECA], ['Balboede', 0x5AECE], ['Unknown', 0x5AEB2]],
+  playFrames: 0x4DCB3, // u32 play time in 1/60 s (unaligned)
+};
+/** Chaos Frame entries store faction reputation from 0 to 100, in screen order.
+ * The older copy at 0x4DB26..0x4DB2C is preserved. */
+export const CHAOS_FRAME = [['Walister', 0x5D985], ['Galgastan', 0x5D986], ['Bakram', 0x5D987], ['Xenobia', 0x5D988],
+  ['Lodis', 0x5D989], ['Bolmocca', 0x5D98A], ['Balboede', 0x5D98B]];
 export const MAX_STOCK = 999; // the user's endgame saves hold up to 999
 
 const enc = new TextEncoder();
@@ -140,6 +158,21 @@ export class SaveData {
   set unionLevel(v) { if (this.knownLayout) this.setU8(PROGRESS.unionLevel, Math.max(1, Math.min(50, v | 0))); }
   get chariotTurns() { return this.knownLayout ? this.u8(PROGRESS.chariotTurns) : 0; }
   set chariotTurns(v) { if (this.knownLayout) this.setU8(PROGRESS.chariotTurns, Math.max(1, Math.min(50, v | 0))); }
+
+  // ---- Warren Report and Chaos Frame (known layout only) ----
+  warren(key) { const f = WARREN.fields.find((x) => x[0] === key); return this.u32(f[1]); }
+  setWarren(key, v) { const f = WARREN.fields.find((x) => x[0] === key); this.setU32(f[1], Math.max(0, Math.min(0xFFFFFFFF, Math.floor(v) || 0))); }
+  enemiesSlain(offset) { return this.u32(offset); }
+  /** Set one faction's kills; the total is kept equal to the sum, as the game keeps it. */
+  setEnemiesSlain(offset, v) {
+    this.setU32(offset, Math.max(0, Math.min(99999999, Math.floor(v) || 0)));
+    this.setU32(WARREN.enemiesTotal, WARREN.enemies.reduce((t, [, o]) => t + this.u32(o), 0));
+  }
+  get enemiesTotal() { return this.u32(WARREN.enemiesTotal); }
+  get playFrames() { return this.u32(WARREN.playFrames); }
+  set playFrames(v) { this.setU32(WARREN.playFrames, Math.max(0, Math.min(0xFFFFFFFF, Math.floor(v) || 0))); }
+  chaos(offset) { return this.u8(offset); }
+  setChaos(offset, v) { this.setU8(offset, Math.max(0, Math.min(100, Math.floor(v) || 0))); }
 
   unitOffset(slot) { return UNIT.start + slot * UNIT.size; }
   unit(slot) { return new Unit(this, slot); }
