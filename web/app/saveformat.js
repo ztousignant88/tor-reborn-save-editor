@@ -79,7 +79,24 @@ export const NAMED_BASE = 2000, CUSTOM_BASE = 3000;
 export const PROGRESS = {
   unionLevel: 0x4DB2D,   // u8: units can't level past this
   chariotTurns: 0x4DB2E, // u8: how many turns the Chariot Tarot can rewind
+  // shop level = story flag 0x46B, a 4-bit flag in the low half of this byte
+  // (the high half is flag 0x46C). 0 at the very start, 1 early, 15 late (max).
+  shopLevel: 0x4D9C4,
 };
+// Story flags (event/event_data.dat entry 3 gives each flag a type and slot):
+// 4-bit flags are packed two per byte from NIBBLE_FLAGS (even slot = low half),
+// byte flags one per byte from BYTE_FLAGS (Union Level is byte slot 29).
+// 1-bit flags are packed from BIT_FLAGS, lowest bit first (each array has 512 bytes).
+export const BIT_FLAGS = 0x4D710;
+export const NIBBLE_FLAGS = 0x4D910;
+export const BYTE_FLAGS = 0x4DB10;
+// Feature unlocks: the game's own checks are "flag != 0" (exe 0x2CB750 / 0x2CBAB0).
+// Bit slots from the flag table; both are set in every late save, Chariot is set
+// in each early save that has used it, both clear in the earliest save.
+export const UNLOCKS = [
+  ['autoBattle', 784, 'Auto-battle (AI control)', 'Story flag 0x493. Turns on the AI control / auto-battle option in battle.'],
+  ['chariot', 785, 'Chariot Tarot', 'Story flag 0x494. Turns on the Chariot Tarot (turn rewind) in battle. The rewind limit is the number beside it.'],
+];
 
 /**
  * Snapshot (cursed) weapon record, 0x51 bytes at INVENTORY.named + 0x51*n,
@@ -158,6 +175,19 @@ export class SaveData {
   set unionLevel(v) { if (this.knownLayout) this.setU8(PROGRESS.unionLevel, Math.max(1, Math.min(50, v | 0))); }
   get chariotTurns() { return this.knownLayout ? this.u8(PROGRESS.chariotTurns) : 0; }
   set chariotTurns(v) { if (this.knownLayout) this.setU8(PROGRESS.chariotTurns, Math.max(1, Math.min(50, v | 0))); }
+  /** 1-bit story flag by its slot in the bit array (not the flag id). */
+  flagBit(slot) { return this.knownLayout ? (this.u8(BIT_FLAGS + (slot >> 3)) >> (slot & 7)) & 1 : 0; }
+  setFlagBit(slot, on) {
+    if (!this.knownLayout) return;
+    const off = BIT_FLAGS + (slot >> 3), mask = 1 << (slot & 7), b = this.u8(off);
+    this.setU8(off, on ? b | mask : b & ~mask);
+  }
+  get shopLevel() { return this.knownLayout ? this.u8(PROGRESS.shopLevel) & 15 : 0; }
+  set shopLevel(v) {
+    if (!this.knownLayout) return;
+    const b = this.u8(PROGRESS.shopLevel);
+    this.setU8(PROGRESS.shopLevel, (b & 0xF0) | Math.max(0, Math.min(15, v | 0)));
+  }
 
   // ---- Warren Report and Chaos Frame (known layout only) ----
   warren(key) { const f = WARREN.fields.find((x) => x[0] === key); return this.u32(f[1]); }

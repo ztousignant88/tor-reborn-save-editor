@@ -11,7 +11,7 @@ import { rgbaCanvas, textureCanvas } from '/js/ui/texcanvas.js';
 import { loadIconArchive } from '/js/game/icons.js';
 import {
   SaveData, UNIT, STATS, EDITABLE_PARTS, SLOT_NAMES, SLOT_TYPES, INVENTORY,
-  NAMED_BASE, CUSTOM_BASE, MAX_STOCK, SNAPSHOT, WARREN, CHAOS_FRAME,
+  NAMED_BASE, CUSTOM_BASE, MAX_STOCK, SNAPSHOT, WARREN, CHAOS_FRAME, UNLOCKS,
 } from './saveformat.js';
 
 const API = { 'X-TOR-Editor': '1' };
@@ -119,7 +119,7 @@ const FIELD_HELP = {
   Alignment: 'Lawful, Neutral or Chaotic. Some classes need a particular alignment, and story choices move units’ loyalty depending on it.',
   Loyalty: 'Hidden loyalty, 0–100. Very unhappy units can leave the army.',
   Luck: 'Hidden luck stat, 0–255. It nudges critical hits and other chances.',
-  Portrait: 'The face shown on the status screen. Story characters have their own.',
+  Portrait: 'The face shown on the status screen. View only: the game links it to the unit’s sprite, so changing it in the save does nothing.',
   // equipment and carried things
   'Right hand': 'Main weapon.', 'Left hand': 'Shield or a second weapon.', Head: 'Helmet, hat or hood.', Body: 'Body armour or robes.',
   Arms: 'Gloves or gauntlets.', Feet: 'Boots or shoes.', Accessory: 'Rings, earrings, amulets and the like.',
@@ -415,16 +415,6 @@ const elementIconFor = (e) => (e >= 1 && e <= 8 ? orgIcon('element', e - 1) : Pr
 /** Damage type 1-3 (Crushing, Slashing, Piercing) and race 1-9 (Human ... Golem), same sheet. */
 const damageTypeIconFor = (t) => (t >= 1 && t <= 3 ? orgIcon('attack_type', t - 1) : Promise.resolve(null));
 const raceIconFor = (r) => (r >= 1 && r <= 9 ? orgIcon('race', r - 1) : Promise.resolve(null));
-/** A small copy of a portrait for lists. */
-function portraitThumb(id) {
-  return portraitArt(id).then((c) => {
-    if (!c) return null;
-    const t = document.createElement('canvas');
-    t.width = t.height = 64;
-    t.getContext('2d').drawImage(c, 0, 0, 64, 64);
-    return t;
-  });
-}
 function cloneCanvas(c) {
   if (!c) return null;
   const copy = document.createElement('canvas');
@@ -812,7 +802,8 @@ function renderUnit() {
         h('label', {}, 'Alignment'), select(ALIGNMENTS.map((name, id) => ({ id, name })), u.alignment, changed((v) => { u.alignment = v; })),
         h('label', {}, 'Loyalty'), numberInput(u.loyalty, changed((v) => { u.loyalty = v; }), { min: 0, max: 100 }),
         h('label', {}, 'Luck'), numberInput(u.luck, changed((v) => { u.luck = v; }), { min: 0, max: 255 }),
-        h('label', {}, 'Portrait'), iconSelect(state.lists.portraits, u.portrait, (v) => { u.portrait = v; markDirty(); renderUnit(); }, portraitThumb)),
+        // view only: the game ties the portrait to the unit's sprite, so changing it here had no effect
+        h('label', {}, 'Portrait'), h('span', { class: 'muted' }, state.lists.portraits.find((o) => o.id === u.portrait)?.name ?? `#${u.portrait}`)),
       portraitBox),
     h('p', { class: 'note' }, 'Move, jump, RT and the attack/defence numbers on the game’s sheet are worked out from class and gear, so they are not stored. ',
       'Changing the level does not re-roll stats.'));
@@ -1151,8 +1142,12 @@ function renderInventory() {
           'Units cannot level past this. The story raises it; the game maximum is 50.'),
         field('Chariot rewind turns', numberInput(d.chariotTurns, (v) => { d.chariotTurns = v; markDirty(); renderInventory(); }, { min: 1, max: 50 }),
           'How many turns the Chariot Tarot can rewind (10 early in the game, 50 late).'),
+        field('Shop level', numberInput(d.shopLevel, (v) => { d.shopLevel = v; markDirty(); renderInventory(); }, { min: 0, max: 15, style: 'width:56px' }),
+          'Which items the town shops sell (0–15). Each shop item needs a minimum level per town; the story raises it. 15 is the highest story tier. Other shop requirements still apply.'),
+        ...UNLOCKS.map(([, slot, label, tip]) => h('label', { class: 'field check', title: tip },
+          h('input', { type: 'checkbox', checked: !!d.flagBit(slot), onchange: (e) => { d.setFlagBit(slot, e.target.checked); markDirty(); } }), label)),
       ] : [])),
-    d.knownLayout ? h('p', { class: 'note' }, 'Union Level caps unit levels (max 50). Found from save comparisons; check in game after changing.') : null);
+    d.knownLayout ? h('p', { class: 'note' }, 'Union Level caps unit levels (max 50). Shop level 15 opens every shop item the story would; other unlocks (recipes, recruits) still apply. Check in game after changing.') : null);
   if (!d.knownLayout) {
     pane.replaceChildren(h('div', { class: 'inv' }, general,
       h('div', { class: 'card' }, h('h3', {}, 'Inventory'), h('p', { class: 'muted' }, 'This save has a different layout, so stock editing is turned off to keep it safe.'))));

@@ -1,12 +1,25 @@
 # TO:R Save Editor
 
+Version 2026.11.17.2
+
 ## Install and open
 
 1. Install Python 3.10 or newer on Windows and add it to PATH.
-2. Extract the `save-editor` folder beside the game's `Data` folder and `Tactics Ogre Reborn.exe`.
-3. Double-click **Start Save Editor.bat**. Keep the console open while using the editor. Select a save in the browser.
+2. Keep the extracted files together in their own `save-editor` folder. Place that folder beside the game's `Data` folder and `Tactics Ogre Reborn.exe` for automatic setup.
+3. Double-click **Start Save Editor.bat** inside that folder. Keep the console open while using the editor. Select a save in the browser.
 
-The browser opens at `http://127.0.0.1:8650/` or the next available port. This package includes the editor modules it needs. Names, sprites, and icons come from your installed copy of the game.
+In Steam, use **Tactics Ogre: Reborn → Manage → Browse local files** to find the game folder. The installed layout looks like this.
+
+```text
+Tactics Ogre Reborn/
+  Data/
+  Tactics Ogre Reborn.exe
+  save-editor/
+    Start Save Editor.bat
+    README.md
+```
+
+The browser opens at `http://127.0.0.1:8650/` or the next available port. This package includes the complete standalone source and the editor modules it needs. The launcher runs the Python source directly. Names, sprites, and icons come from your installed copy of the game.
 
 If you unpack the editor somewhere else, launch it from PowerShell and point it to the game's Data folder.
 
@@ -24,6 +37,7 @@ The editor looks for saves under `Documents\My Games\Tactics Ogre Reborn` and op
 | Roster | duplicate a unit into the next free slot; remove a unit (later units move up) |
 | Inventory | Goth, army name, stock of every equipment piece and item (0–999) |
 | Campaign records | Warren Report statistics and Chaos Frame faction reputation |
+| Progression | Shop level, Union Level, Auto-battle and Chariot Tarot unlocks, and rewind limit |
 
 Pictures: unit sprites (roster and unit header), and icons for equipment,
 spells, items, skills and the inventory lists. They come from the game's own
@@ -34,7 +48,11 @@ any class. Story characters with a sprite of their own (Denam, Vyce, Leonar,
 Hobyrim…) keep it in generic classes (class skill set +0x53 is 1–43), but
 their unique class has its own sprite (Denam as Lord). Everyone else uses the
 class sprite, or the template's when the class has none. Sprites may take a few seconds
-on first load.
+on first load. The portrait field displays the face for reference. The game chooses the portrait from the unit’s sprite.
+
+## Progression and unlocks
+
+In **Inventory & Goth → Army**, use **Shop level** to change the story tier used by town shops. The range is 0–15. The shop and item still apply their other requirements. Use **Auto-battle (AI control)** and **Chariot Tarot** to set the two unlock flags for this save. **Chariot rewind turns** controls the rewind limit when available. These controls appear on the supported save layout.
 
 ## Safety
 
@@ -59,6 +77,8 @@ fields).
 | 0x50 u32 | Goth | 30,000 in every new-game save; changes as Goth is spent |
 | 0x4DB2D u8 | Union Level (unit level cap, max 50) | 3 and 5 in early Chapter 1 saves (guides give 5 at Almorica), 50 in every late save; units never exceed it |
 | 0x4DB2E u8 | Chariot Tarot rewind limit (turns) | 10 early (the press notes rewinding starts at 10 turns), 50 late |
+| 0x4D9C4, low 4 bits | shop level (story flag 0x46B, range 0–15) | the high 4 bits store flag 0x46C |
+| 0x4D772, bits 0 and 1 | Auto-battle and Chariot Tarot unlocks (flags 0x493 and 0x494) | the game checks each flag for a nonzero value |
 | 0x54 text | army name ("The Star") | directly before Goth in memory, per the cheat table |
 | 0xC6 + n×0x7B5 | unit slot n (105 slots; 100–104 are game-reserved) | roster is always packed from slot 0 |
 | unit +0x01 | name (37 bytes) | |
@@ -68,7 +88,7 @@ fields).
 | unit +0x83 / +0x84 | luck / loyalty | cheat table |
 | unit +0x88 / +0x89 / +0x8C | class / level / element | class and level match the game's names |
 | unit +0x93 | 7 equipment u16: right, left, head, body, arms, feet, accessory | slot types match the items found |
-| unit +0x43 u16 | portrait = FileTable directory 30 id (`object/<name>NN.dat`) | Denam 123 = DenimLord00, Sara 491 = Rouge_f00 |
+| unit +0x43 u16 | portrait = FileTable directory 30 id (`object/<name>NN.dat`) | Denam 123 = DenimLord00, Sara 491 = Rouge_f00. Displayed for reference because the game selects the portrait from the unit sprite. |
 | unit +0x8D | bits 0–2 clan, bits 3–4 alignment (1 Lawful, 2 Neutral, 3 Chaotic) | cheat table; alignment values are only ever 1–3 |
 | unit +0xF0 | 4 equipped skills × 6 bytes: id u16, rank u8, pad, xp u16 | slots 5–10 are empty in every save |
 | unit +0x1D1 | 800-bit set: skills unlocked by level, across all classes | per the user's in-game knowledge |

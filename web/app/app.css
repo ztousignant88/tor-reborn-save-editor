@@ -179,6 +179,7 @@ dialog menu .spacer { flex: 1; }
 .fields-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; }
 .fields-row .field { display: inline-flex; align-items: center; gap: 8px; }
 .fields-row label { color: var(--muted); }
+.fields-row label.check { gap: 6px; color: var(--text); cursor: pointer; }
 
 .statusbar {
   display: flex; justify-content: space-between; gap: 12px; padding: 5px 14px;
